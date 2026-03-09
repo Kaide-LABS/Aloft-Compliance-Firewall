@@ -78,38 +78,48 @@ class LegislationFetcher:
                 text = self._extract_text(el)
                 section_num = el.get("id", f"section-{i}")
 
-                sections.append({
-                    "section_number": section_num,
-                    "title": title or f"Section {i}",
-                    "text": text,
-                })
+                sections.append(
+                    {
+                        "section_number": section_num,
+                        "title": title or f"Section {i}",
+                        "text": text,
+                    }
+                )
         else:
             # Fallback: if no structured sections found, try P1 elements
             for i, el in enumerate(root.findall(".//leg:P1", NS), 1):
                 text = self._extract_text(el)
                 if text and len(text) > 20:
-                    sections.append({
-                        "section_number": el.get("id", f"p1-{i}"),
-                        "title": f"Paragraph {i}",
-                        "text": text,
-                    })
+                    sections.append(
+                        {
+                            "section_number": el.get("id", f"p1-{i}"),
+                            "title": f"Paragraph {i}",
+                            "text": text,
+                        }
+                    )
 
         if not sections:
             # Last resort: extract entire body as one chunk
-            body = root.find(".//leg:Body", NS) or root.find(".//leg:Schedule", NS) or root
+            body = (
+                root.find(".//leg:Body", NS) or root.find(".//leg:Schedule", NS) or root
+            )
             full_text = self._extract_text(body)
             if full_text and len(full_text) > 20:
-                sections.append({
-                    "section_number": "full",
-                    "title": "Full text",
-                    "text": full_text,
-                })
+                sections.append(
+                    {
+                        "section_number": "full",
+                        "title": "Full text",
+                        "text": full_text,
+                    }
+                )
 
         if not sections:
-            sections.append({
-                "section_number": "empty",
-                "title": "No content extracted",
-                "text": "No parseable sections found in this legislation document.",
-            })
+            sections.append(
+                {
+                    "section_number": "empty",
+                    "title": "No content extracted",
+                    "text": "No parseable sections found in this legislation document.",
+                }
+            )
 
         return sections

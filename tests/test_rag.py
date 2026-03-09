@@ -53,6 +53,7 @@ async def test_rag_ingest_and_query(monkeypatch):
 
     # Query using the same fake embeddings
     from src.rag.store import query_legislation
+
     results = query_legislation("minimum EPC rating", k=1)
 
     assert len(results) >= 1

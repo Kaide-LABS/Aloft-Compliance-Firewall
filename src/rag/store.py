@@ -30,8 +30,7 @@ def save_vector_store_docs(documents: list[Document]):
     """Persist documents to JSON. Called after ingestion with the original documents."""
     os.makedirs(os.path.dirname(PERSIST_FILE), exist_ok=True)
     data = [
-        {"content": doc.page_content, "metadata": doc.metadata}
-        for doc in documents
+        {"content": doc.page_content, "metadata": doc.metadata} for doc in documents
     ]
     with open(PERSIST_FILE, "w") as f:
         json.dump(data, f, indent=2)
