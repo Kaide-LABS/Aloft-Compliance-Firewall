@@ -9,18 +9,6 @@ class CompaniesHouseClient:
         self.api_key = api_key
 
     async def search_company(self, name: str) -> list[CompanyProfile]:
-        if self.api_key == "mock":
-            return [
-                CompanyProfile(
-                    company_name=name,
-                    company_number="12345678",
-                    company_status="active",
-                    date_of_creation="2020-01-01",
-                    registered_office_address={},
-                    type="ltd",
-                )
-            ]
-
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{self.BASE_URL}/search/companies",
@@ -32,16 +20,6 @@ class CompaniesHouseClient:
             return [CompanyProfile(**item) for item in data.get("items", [])]
 
     async def get_company(self, company_number: str) -> CompanyProfile:
-        if self.api_key == "mock":
-            return CompanyProfile(
-                company_name="Mock Co",
-                company_number=company_number,
-                company_status="active",
-                date_of_creation="2020-01-01",
-                registered_office_address={},
-                type="ltd",
-            )
-
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{self.BASE_URL}/company/{company_number}",

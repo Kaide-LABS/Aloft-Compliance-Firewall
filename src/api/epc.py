@@ -12,21 +12,6 @@ class EPCClient:
         """Search for EPC certificates by postcode."""
         clean_postcode = postcode.replace(" ", "")
 
-        if self.api_key == "mock":
-            return [
-                EPCCertificate(
-                    **{
-                        "address": "1 Mock St",
-                        "postcode": postcode,
-                        "current-energy-rating": "D",
-                        "potential-energy-rating": "C",
-                        "property-type": "House",
-                        "lodgement-date": "2022-01-01",
-                        "certificate-hash": "mock123",
-                    }
-                )
-            ]
-
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 self.BASE_URL,

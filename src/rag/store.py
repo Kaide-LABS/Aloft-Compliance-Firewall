@@ -1,8 +1,8 @@
 import json
 import os
 from langchain_core.vectorstores import InMemoryVectorStore
-from src.rag.embeddings import get_embedding_model
 from langchain_core.documents import Document
+from src.rag.embeddings import get_embedding_model
 
 PERSIST_FILE = "./data/in_memory/store.json"
 
@@ -18,20 +18,23 @@ def get_vector_store(create_if_missing: bool = False) -> InMemoryVectorStore:
                 Document(page_content=d["content"], metadata=d["metadata"])
                 for d in data
             ]
-            store.add_documents(docs)
+            if docs:
+                store.add_documents(docs)
     elif not create_if_missing:
         print("Warning: Vector store file not found. Run ingest first.")
 
     return store
 
 
-def save_vector_store(store: InMemoryVectorStore):
+def save_vector_store_docs(documents: list[Document]):
+    """Persist documents to JSON. Called after ingestion with the original documents."""
     os.makedirs(os.path.dirname(PERSIST_FILE), exist_ok=True)
     data = [
-        {"content": d["text"], "metadata": d["metadata"]} for d in store.store.values()
+        {"content": doc.page_content, "metadata": doc.metadata}
+        for doc in documents
     ]
     with open(PERSIST_FILE, "w") as f:
-        json.dump(data, f)
+        json.dump(data, f, indent=2)
 
 
 def query_legislation(question: str, k: int = 5) -> list[dict]:
@@ -41,7 +44,7 @@ def query_legislation(question: str, k: int = 5) -> list[dict]:
     return [
         {
             "content": doc.page_content,
-            "metadata": doc.metadata,  # act_name, section_number, title, etc.
+            "metadata": doc.metadata,
             "relevance_score": score,
         }
         for doc, score in results

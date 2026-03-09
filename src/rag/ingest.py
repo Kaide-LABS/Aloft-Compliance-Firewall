@@ -1,7 +1,7 @@
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from src.api.legislation import LegislationFetcher
-from src.rag.store import get_vector_store, save_vector_store
+from src.rag.store import get_vector_store, save_vector_store_docs
 
 LEGISLATION_MANIFEST = [
     {
@@ -73,9 +73,9 @@ async def ingest_all_legislation():
     chunks = splitter.split_documents(all_documents)
 
     if chunks:
-        # Add to Vector Store
+        # Add to Vector Store and persist the documents to disk
         store.add_documents(chunks)
-        save_vector_store(store)
+        save_vector_store_docs(chunks)
         print(
             f"Ingested {len(chunks)} chunks from {len(LEGISLATION_MANIFEST)} pieces of legislation"
         )
