@@ -1,3 +1,15 @@
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def mock_api_keys(monkeypatch):
+    """Set mock API keys for all tests so LLM clients don't fail on import."""
+    monkeypatch.setenv("OPENAI_API_KEY", "mock_openai_key")
+    monkeypatch.setenv("GOOGLE_API_KEY", "mock_google_key")
+    monkeypatch.setenv("EPC_API_KEY", "mock_epc_key")
+    monkeypatch.setenv("COMPANIES_HOUSE_API_KEY", "mock_ch_key")
+
+
 MOCK_EPC_RESPONSE = {
     "rows": [
         {

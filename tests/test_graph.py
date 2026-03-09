@@ -1,10 +1,5 @@
-import os
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-
-# Set mock env vars before importing agent modules
-os.environ["OPENAI_API_KEY"] = "mock_openai_key"
-os.environ["GOOGLE_API_KEY"] = "mock_google_key"
 
 
 @pytest.mark.asyncio
