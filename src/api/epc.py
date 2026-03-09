@@ -1,0 +1,48 @@
+import httpx
+from src.models.schemas import EPCCertificate
+
+
+class EPCClient:
+    BASE_URL = "https://epc.opendatacommunities.org/api/v1/domestic/search"
+
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+
+    async def search_by_postcode(self, postcode: str) -> list[EPCCertificate]:
+        """Search for EPC certificates by postcode."""
+        clean_postcode = postcode.replace(" ", "")
+
+        if self.api_key == "mock":
+            return [
+                EPCCertificate(
+                    **{
+                        "address": "1 Mock St",
+                        "postcode": postcode,
+                        "current-energy-rating": "D",
+                        "potential-energy-rating": "C",
+                        "property-type": "House",
+                        "lodgement-date": "2022-01-01",
+                        "certificate-hash": "mock123",
+                    }
+                )
+            ]
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                self.BASE_URL,
+                params={"postcode": clean_postcode},
+                headers={"Accept": "application/json"},
+                auth=(self.api_key, ""),
+            )
+            response.raise_for_status()
+            data = response.json()
+            rows = data.get("rows", [])
+            return [EPCCertificate(**row) for row in rows]
+
+    def get_latest_certificate(
+        self, certificates: list[EPCCertificate]
+    ) -> EPCCertificate | None:
+        """Return the most recent EPC certificate by lodgement date."""
+        if not certificates:
+            return None
+        return sorted(certificates, key=lambda c: c.lodgement_date, reverse=True)[0]
