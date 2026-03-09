@@ -1431,8 +1431,581 @@ Phase 2 is DONE when:
 
 ---
 
-*Document version: 1.2*
+---
+---
+
+# PHASE 3 SPEC: Frontend & Report Generation
+
+**Status:** Active
+**Scope:** Streamlit dashboard + PDF compliance report
+**Goal:** A professional-looking demo UI where you type a postcode, see the compliance check run, and download a PDF report. This is what Ibrahim and Muntasir will actually see.
+
+**Prerequisite:** Phase 2 is complete. The full LangGraph pipeline works end-to-end via CLI.
+
+---
+
+## 1. New Files to Create
+
+```
+src/
+├── app.py                    # Streamlit application entry point
+├── report/
+│   ├── __init__.py
+│   └── pdf_generator.py      # PDF compliance report generation
+├── static/
+│   └── logo.png              # Placeholder logo (optional — can use text)
+```
+
+## 2. Dependencies to Add
+
+```toml
+# Add to pyproject.toml [project.dependencies]
+"streamlit>=1.45",
+"reportlab>=4.3",
+```
+
+## 3. Streamlit App (`src/app.py`)
+
+### Layout and Flow
+
+The app has 3 states:
+
+**State 1: Input** — Clean landing page with postcode input
+**State 2: Processing** — Shows which agents are running with live status
+**State 3: Results** — Full compliance verdict with download button
+
+### Implementation
+
+```python
+import streamlit as st
+import asyncio
+import json
+import time
+from dotenv import load_dotenv
+
+load_dotenv()
+
+st.set_page_config(
+    page_title="Aloft Compliance Firewall",
+    page_icon="🛡️",
+    layout="wide",
+)
+
+# --- Custom CSS for professional look ---
+st.markdown("""
+<style>
+    .main-header {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #1a1a2e;
+        margin-bottom: 0;
+    }
+    .sub-header {
+        font-size: 1.1rem;
+        color: #6c757d;
+        margin-top: 0;
+    }
+    .verdict-green {
+        background-color: #d4edda;
+        border-left: 5px solid #28a745;
+        padding: 1.5rem;
+        border-radius: 0 8px 8px 0;
+        margin: 1rem 0;
+    }
+    .verdict-amber {
+        background-color: #fff3cd;
+        border-left: 5px solid #ffc107;
+        padding: 1.5rem;
+        border-radius: 0 8px 8px 0;
+        margin: 1rem 0;
+    }
+    .verdict-red {
+        background-color: #f8d7da;
+        border-left: 5px solid #dc3545;
+        padding: 1.5rem;
+        border-radius: 0 8px 8px 0;
+        margin: 1rem 0;
+    }
+    .metric-card {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        text-align: center;
+    }
+    .cost-badge {
+        background: #e8f5e9;
+        color: #2e7d32;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+def run_async(coro):
+    """Run an async coroutine from sync Streamlit context."""
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
+# --- Header ---
+st.markdown('<p class="main-header">Aloft Compliance Firewall</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-header">Pre-leasing regulatory compliance checking powered by multi-agent AI</p>', unsafe_allow_html=True)
+st.divider()
+
+# --- Input Section ---
+col1, col2, col3 = st.columns([2, 2, 1])
+with col1:
+    postcode = st.text_input("UK Postcode", placeholder="e.g. SW1A 2AA", key="postcode_input")
+with col2:
+    company_name = st.text_input("Property Management Company (optional)", placeholder="e.g. Foxtons", key="company_input")
+with col3:
+    st.write("")  # Spacer
+    st.write("")  # Spacer
+    run_check = st.button("Run Compliance Check", type="primary", use_container_width=True)
+
+# --- Processing & Results ---
+if run_check and postcode:
+    start_time = time.time()
+
+    # Show agent status
+    status_container = st.container()
+    with status_container:
+        st.subheader("Agent Activity")
+        col_a1, col_a2, col_a3, col_a4 = st.columns(4)
+        with col_a1:
+            agent1_status = st.empty()
+            agent1_status.info("🔍 Legal Rules Agent\n\nQuerying legislation...")
+        with col_a2:
+            agent2_status = st.empty()
+            agent2_status.info("🏠 Property Audit Agent\n\nChecking EPC & Company...")
+        with col_a3:
+            agent3_status = st.empty()
+            agent3_status.warning("⏳ Risk Scorer\n\nWaiting for data...")
+        with col_a4:
+            agent4_status = st.empty()
+            agent4_status.warning("⏳ Orchestrator\n\nWaiting for assessment...")
+
+    # Run the graph
+    from src.agents.graph import compliance_graph
+
+    with st.spinner("Running compliance check..."):
+        result = run_async(compliance_graph.ainvoke({
+            "postcode": postcode,
+            "company_name": company_name,
+            "legal_requirements": [],
+            "epc_data": {},
+            "company_data": {},
+            "risk_score": 0,
+            "risk_level": "",
+            "violations": [],
+            "warnings": [],
+            "summary": "",
+            "raw_agent_outputs": [],
+        }))
+
+    elapsed = time.time() - start_time
+
+    # Update agent statuses to complete
+    with col_a1:
+        agent1_status.success("✅ Legal Rules Agent\n\nComplete")
+    with col_a2:
+        agent2_status.success("✅ Property Audit Agent\n\nComplete")
+    with col_a3:
+        agent3_status.success("✅ Risk Scorer\n\nComplete")
+    with col_a4:
+        agent4_status.success("✅ Orchestrator\n\nComplete")
+
+    st.divider()
+
+    # --- Verdict Banner ---
+    level = result.get("risk_level", "UNKNOWN")
+    score = result.get("risk_score", 0)
+    level_class = {"GREEN": "verdict-green", "AMBER": "verdict-amber", "RED": "verdict-red"}.get(level, "verdict-amber")
+    level_icon = {"GREEN": "✅", "AMBER": "⚠️", "RED": "🚫"}.get(level, "❓")
+    level_text = {
+        "GREEN": "CLEAR TO LEASE",
+        "AMBER": "PROCEED WITH CAUTION",
+        "RED": "DO NOT LEASE",
+    }.get(level, "UNKNOWN")
+
+    st.markdown(f"""
+    <div class="{level_class}">
+        <h2 style="margin:0">{level_icon} {level}: {level_text}</h2>
+        <p style="margin:0.5rem 0 0 0; font-size: 1.1rem">Risk Score: <strong>{score}/100</strong></p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # --- Metrics Row ---
+    met1, met2, met3, met4 = st.columns(4)
+    with met1:
+        epc = result.get("epc_data", {})
+        st.metric("EPC Rating", epc.get("rating", "N/A"))
+    with met2:
+        st.metric("Legal Checks", len(result.get("legal_requirements", [])))
+    with met3:
+        st.metric("Check Time", f"{elapsed:.1f}s")
+    with met4:
+        st.markdown(f'<div class="metric-card"><span class="cost-badge">~£0.01 per check</span></div>', unsafe_allow_html=True)
+
+    # --- Summary ---
+    st.subheader("Compliance Summary")
+    st.write(result.get("summary", ""))
+
+    # --- Violations & Warnings ---
+    col_v, col_w = st.columns(2)
+    with col_v:
+        violations = result.get("violations", [])
+        if violations:
+            st.subheader(f"🚫 Violations ({len(violations)})")
+            for v in violations:
+                severity_color = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡"}.get(v.get("severity", ""), "⚪")
+                st.markdown(f"**{severity_color} {v.get('severity', 'HIGH')}:** {v['description']}")
+                if v.get("legislation"):
+                    st.caption(f"📜 {v['legislation']}")
+        else:
+            st.subheader("✅ No Violations")
+            st.write("No compliance violations detected.")
+
+    with col_w:
+        warnings = result.get("warnings", [])
+        if warnings:
+            st.subheader(f"⚠️ Warnings ({len(warnings)})")
+            for w in warnings:
+                st.markdown(f"**{w['description']}**")
+                if w.get("expires_in_days"):
+                    st.caption(f"⏰ Expires in {w['expires_in_days']} days")
+        else:
+            st.subheader("✅ No Warnings")
+            st.write("No compliance warnings.")
+
+    # --- Property Details (expandable) ---
+    with st.expander("📋 Property Details"):
+        epc_data = result.get("epc_data", {})
+        if epc_data.get("found"):
+            st.json(epc_data)
+        else:
+            st.warning(f"No EPC data found: {epc_data.get('error', 'Unknown error')}")
+
+    with st.expander("🏢 Company Verification"):
+        company_data = result.get("company_data", {})
+        if company_data.get("found"):
+            st.json(company_data)
+        elif company_name:
+            st.warning(f"Company not found: {company_data.get('error', 'Unknown')}")
+        else:
+            st.info("No company name provided — skipped verification.")
+
+    with st.expander("📜 Legal Requirements Checked"):
+        for req in result.get("legal_requirements", []):
+            st.markdown(f"- **{req.get('requirement', '')}**")
+            st.caption(f"  {req.get('legislation', '')} — {req.get('section', '')}")
+
+    # --- PDF Download ---
+    st.divider()
+    from src.report.pdf_generator import generate_compliance_pdf
+
+    pdf_bytes = generate_compliance_pdf(result, postcode, company_name, elapsed)
+    st.download_button(
+        label="📄 Download Compliance Report (PDF)",
+        data=pdf_bytes,
+        file_name=f"compliance_report_{postcode.replace(' ', '_')}.pdf",
+        mime="application/pdf",
+        type="primary",
+        use_container_width=True,
+    )
+
+    # --- Raw Data (for technical demo) ---
+    with st.expander("🔧 Raw Agent Outputs (Debug)"):
+        st.json(result.get("raw_agent_outputs", []))
+
+elif run_check and not postcode:
+    st.error("Please enter a UK postcode.")
+```
+
+### Key UX Decisions:
+- **No page navigation** — single page with conditional rendering. Simpler for a demo.
+- **Agent status cards** — shows all 4 agents, updates to "Complete" after the graph finishes. In a real product you'd use streaming/callbacks, but for the demo this visual is sufficient.
+- **Cost badge** — prominently shows "~£0.01 per check". This is the killer pitch number.
+- **Expandable sections** — keeps the main view clean, lets the CTO drill into raw data.
+- **Download button** — generates PDF on demand.
+
+## 4. PDF Report Generator (`src/report/pdf_generator.py`)
+
+### Implementation
+
+```python
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.colors import HexColor
+from reportlab.lib.units import mm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from io import BytesIO
+from datetime import datetime
+
+
+COLORS = {
+    "GREEN": HexColor("#28a745"),
+    "AMBER": HexColor("#ffc107"),
+    "RED": HexColor("#dc3545"),
+    "header_bg": HexColor("#1a1a2e"),
+    "light_gray": HexColor("#f8f9fa"),
+    "text": HexColor("#212529"),
+    "muted": HexColor("#6c757d"),
+}
+
+
+def generate_compliance_pdf(result: dict, postcode: str, company_name: str, elapsed: float) -> bytes:
+    """Generate a professional PDF compliance report. Returns bytes."""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        leftMargin=20 * mm, rightMargin=20 * mm,
+        topMargin=20 * mm, bottomMargin=20 * mm,
+    )
+
+    styles = getSampleStyleSheet()
+
+    # Custom styles
+    title_style = ParagraphStyle(
+        "ReportTitle", parent=styles["Title"],
+        fontSize=22, textColor=COLORS["header_bg"],
+        spaceAfter=5 * mm,
+    )
+    subtitle_style = ParagraphStyle(
+        "ReportSubtitle", parent=styles["Normal"],
+        fontSize=10, textColor=COLORS["muted"],
+        spaceAfter=10 * mm,
+    )
+    heading_style = ParagraphStyle(
+        "SectionHeading", parent=styles["Heading2"],
+        fontSize=14, textColor=COLORS["header_bg"],
+        spaceBefore=8 * mm, spaceAfter=4 * mm,
+    )
+    body_style = ParagraphStyle(
+        "BodyText", parent=styles["Normal"],
+        fontSize=10, textColor=COLORS["text"],
+        spaceAfter=3 * mm, leading=14,
+    )
+    verdict_style = ParagraphStyle(
+        "Verdict", parent=styles["Normal"],
+        fontSize=16, alignment=TA_CENTER,
+        spaceAfter=5 * mm,
+    )
+
+    elements = []
+
+    # --- Header ---
+    elements.append(Paragraph("Compliance Report", title_style))
+    elements.append(Paragraph(
+        f"Generated: {datetime.now().strftime('%d %B %Y at %H:%M')} | "
+        f"Postcode: {postcode} | "
+        f"Processing time: {elapsed:.1f}s",
+        subtitle_style,
+    ))
+    elements.append(HRFlowable(width="100%", thickness=1, color=COLORS["muted"]))
+    elements.append(Spacer(1, 5 * mm))
+
+    # --- Verdict ---
+    level = result.get("risk_level", "UNKNOWN")
+    score = result.get("risk_score", 0)
+    level_text = {"GREEN": "CLEAR TO LEASE", "AMBER": "PROCEED WITH CAUTION", "RED": "DO NOT LEASE"}.get(level, "UNKNOWN")
+    verdict_color = COLORS.get(level, COLORS["muted"])
+
+    verdict_data = [[
+        Paragraph(f"<b>{level}: {level_text}</b>", ParagraphStyle("v", parent=verdict_style, textColor=verdict_color)),
+        Paragraph(f"<b>Risk Score: {score}/100</b>", ParagraphStyle("s", parent=verdict_style, textColor=verdict_color)),
+    ]]
+    verdict_table = Table(verdict_data, colWidths=[90 * mm, 80 * mm])
+    verdict_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), COLORS["light_gray"]),
+        ("BOX", (0, 0), (-1, -1), 1, verdict_color),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(verdict_table)
+    elements.append(Spacer(1, 5 * mm))
+
+    # --- Summary ---
+    elements.append(Paragraph("Executive Summary", heading_style))
+    elements.append(Paragraph(result.get("summary", "No summary available."), body_style))
+
+    # --- EPC Data ---
+    epc = result.get("epc_data", {})
+    elements.append(Paragraph("Property Data — EPC Certificate", heading_style))
+    if epc.get("found"):
+        epc_rows = [
+            ["Field", "Value"],
+            ["Address", epc.get("address", "N/A")],
+            ["Current Rating", epc.get("rating", "N/A")],
+            ["Potential Rating", epc.get("potential_rating", "N/A")],
+            ["Property Type", epc.get("property_type", "N/A")],
+            ["Lodgement Date", epc.get("lodgement_date", "N/A")],
+        ]
+        epc_table = Table(epc_rows, colWidths=[50 * mm, 120 * mm])
+        epc_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), COLORS["header_bg"]),
+            ("TEXTCOLOR", (0, 0), (-1, 0), HexColor("#ffffff")),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("GRID", (0, 0), (-1, -1), 0.5, COLORS["muted"]),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [HexColor("#ffffff"), COLORS["light_gray"]]),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        elements.append(epc_table)
+    else:
+        elements.append(Paragraph(f"No EPC certificate found: {epc.get('error', 'Unknown')}", body_style))
+
+    # --- Company Data ---
+    company = result.get("company_data", {})
+    if company_name:
+        elements.append(Paragraph("Company Verification", heading_style))
+        if company.get("found"):
+            comp_rows = [
+                ["Field", "Value"],
+                ["Company Name", company.get("company_name", "N/A")],
+                ["Company Number", company.get("company_number", "N/A")],
+                ["Status", company.get("status", "N/A")],
+                ["Type", company.get("type", "N/A")],
+            ]
+            comp_table = Table(comp_rows, colWidths=[50 * mm, 120 * mm])
+            comp_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), COLORS["header_bg"]),
+                ("TEXTCOLOR", (0, 0), (-1, 0), HexColor("#ffffff")),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("GRID", (0, 0), (-1, -1), 0.5, COLORS["muted"]),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [HexColor("#ffffff"), COLORS["light_gray"]]),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]))
+            elements.append(comp_table)
+        else:
+            elements.append(Paragraph("Company not found in Companies House register.", body_style))
+
+    # --- Violations ---
+    violations = result.get("violations", [])
+    elements.append(Paragraph(f"Violations ({len(violations)})", heading_style))
+    if violations:
+        for v in violations:
+            elements.append(Paragraph(
+                f"<b>[{v.get('severity', 'HIGH')}]</b> {v['description']}<br/>"
+                f"<i>Legislation: {v.get('legislation', 'N/A')}</i>",
+                body_style,
+            ))
+    else:
+        elements.append(Paragraph("No compliance violations detected.", body_style))
+
+    # --- Warnings ---
+    warnings = result.get("warnings", [])
+    elements.append(Paragraph(f"Warnings ({len(warnings)})", heading_style))
+    if warnings:
+        for w in warnings:
+            text = w["description"]
+            if w.get("expires_in_days"):
+                text += f" (expires in {w['expires_in_days']} days)"
+            elements.append(Paragraph(text, body_style))
+    else:
+        elements.append(Paragraph("No compliance warnings.", body_style))
+
+    # --- Legal Requirements ---
+    reqs = result.get("legal_requirements", [])
+    elements.append(Paragraph(f"Legal Requirements Checked ({len(reqs)})", heading_style))
+    if reqs:
+        req_rows = [["Requirement", "Legislation", "Section"]]
+        for r in reqs:
+            req_rows.append([
+                Paragraph(r.get("requirement", ""), ParagraphStyle("rc", fontSize=8, leading=10)),
+                Paragraph(r.get("legislation", ""), ParagraphStyle("rl", fontSize=8, leading=10)),
+                r.get("section", ""),
+            ])
+        req_table = Table(req_rows, colWidths=[80 * mm, 55 * mm, 35 * mm])
+        req_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), COLORS["header_bg"]),
+            ("TEXTCOLOR", (0, 0), (-1, 0), HexColor("#ffffff")),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("GRID", (0, 0), (-1, -1), 0.5, COLORS["muted"]),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [HexColor("#ffffff"), COLORS["light_gray"]]),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        elements.append(req_table)
+
+    # --- Footer ---
+    elements.append(Spacer(1, 10 * mm))
+    elements.append(HRFlowable(width="100%", thickness=0.5, color=COLORS["muted"]))
+    elements.append(Paragraph(
+        f"Report generated by Aloft Compliance Firewall | "
+        f"Estimated cost: ~£0.01 | "
+        f"Processing time: {elapsed:.1f}s | "
+        f"This report is for informational purposes only and does not constitute legal advice.",
+        ParagraphStyle("footer", parent=body_style, fontSize=7, textColor=COLORS["muted"], alignment=TA_CENTER),
+    ))
+
+    doc.build(elements)
+    return buffer.getvalue()
+```
+
+### PDF Design Notes:
+- **Professional look** — dark header colors, clean tables, proper spacing
+- **Verdict banner** — color-coded (green/amber/red) at the top
+- **Structured data tables** — EPC data, company data, legal requirements all in formatted tables
+- **Footer** — includes cost badge and disclaimer
+- **A4 format** — standard UK/EU document size
+
+## 5. Running the App
+
+```bash
+# From project root
+streamlit run src/app.py
+```
+
+The app will open at `http://localhost:8501`.
+
+## 6. Acceptance Criteria
+
+Phase 3 is DONE when:
+
+- [ ] `streamlit run src/app.py` launches without errors
+- [ ] Typing a real UK postcode and clicking "Run Compliance Check" returns a verdict
+- [ ] The verdict banner is color-coded (GREEN/AMBER/RED)
+- [ ] Agent status cards show during processing
+- [ ] EPC data, violations, warnings, and legal requirements display correctly
+- [ ] Expandable sections work for property details, company verification, and legal requirements
+- [ ] "Download Compliance Report" button generates and downloads a PDF
+- [ ] The PDF is well-formatted, professional, and contains all compliance data
+- [ ] The cost badge shows "~£0.01 per check"
+- [ ] The check time metric displays correctly
+- [ ] The app looks professional enough to present to founders
+
+## 7. Notes for Gemini (Executor)
+
+- **Streamlit + asyncio:** Streamlit runs synchronously. The spec uses `run_async()` helper with `asyncio.new_event_loop()` to bridge. If you get event loop conflicts, use `asyncio.run()` instead, or try `nest_asyncio` as a last resort.
+
+- **Agent status cards are simplified:** In a production app you'd use LangGraph callbacks/streaming to update status in real-time. For the demo, we show all 4 as "running" then flip them all to "complete" after the graph finishes. This is intentionally simple — don't over-engineer it.
+
+- **CSS injection:** Streamlit supports custom CSS via `st.markdown()` with `unsafe_allow_html=True`. The spec includes styling for verdict banners, metric cards, and the cost badge. Adjust colors/spacing as needed but keep it clean and professional.
+
+- **PDF generation:** ReportLab is a mature library but verbose. The spec provides a complete implementation — follow it closely. The key design elements are: color-coded verdict banner, data tables with alternating row colors, and a footer with cost/time/disclaimer.
+
+- **Test the PDF separately:** You can test PDF generation in isolation by calling `generate_compliance_pdf()` with a mock result dict and writing the bytes to a file. Don't wait until the full Streamlit flow to verify it looks right.
+
+- **Don't add authentication or session management.** This is a demo, not a product.
+
+- **Logo:** The spec mentions a placeholder logo. Skip it — use text headers. Adding a logo file is unnecessary complexity for the demo.
+
+---
+
+*Document version: 1.3*
 *Created: 2026-03-09*
 *Phase 1 spec added: 2026-03-09*
 *Phase 2 spec added: 2026-03-09*
-*Status: Phase 2 spec ready for Gemini execution*
+*Phase 3 spec added: 2026-03-09*
+*Status: Phase 3 spec ready for Gemini execution*
