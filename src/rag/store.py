@@ -7,7 +7,14 @@ from src.rag.embeddings import get_embedding_model
 PERSIST_FILE = "./data/in_memory/store.json"
 
 
+_cached_store = None
+
+
 def get_vector_store(create_if_missing: bool = False) -> InMemoryVectorStore:
+    global _cached_store
+    if _cached_store is not None:
+        return _cached_store
+
     embedding = get_embedding_model()
     store = InMemoryVectorStore(embedding)
 
@@ -23,6 +30,7 @@ def get_vector_store(create_if_missing: bool = False) -> InMemoryVectorStore:
     elif not create_if_missing:
         print("Warning: Vector store file not found. Run ingest first.")
 
+    _cached_store = store
     return store
 
 

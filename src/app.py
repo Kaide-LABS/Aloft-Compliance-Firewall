@@ -3,6 +3,8 @@ import asyncio
 import time
 from dotenv import load_dotenv
 
+from src.demo_postcodes import DEMO_POSTCODES  # noqa: E402
+
 load_dotenv()
 
 st.set_page_config(
@@ -86,6 +88,40 @@ st.markdown(
 )
 st.divider()
 
+# --- Sidebar ---
+with st.sidebar:
+    st.header("How It Works")
+    st.markdown("""
+    **Multi-Agent AI Architecture:**
+
+    1. **Legal Rules Agent** (Gemini 2.5 Flash)
+       RAG search across UK housing legislation
+
+    2. **Property Audit Agent** (Deterministic)
+       Real EPC + Companies House API checks
+
+    3. **Risk Scorer** (GPT-4o-mini)
+       Scores compliance risk 0–100
+
+    4. **Orchestrator** (GPT-4o)
+       Generates human-readable summary
+
+    ---
+
+    **Data Sources:**
+    - EPC Open Data API
+    - Companies House API
+    - legislation.gov.uk
+    - Housing Act 2004
+    - Energy Efficiency Regs 2015
+    - Renters' Rights Act 2025
+
+    ---
+
+    **Cost:** ~£0.01 per check
+    **Latency:** <10 seconds
+    """)
+
 # --- Input Section ---
 col1, col2, col3 = st.columns([2, 2, 1])
 with col1:
@@ -104,6 +140,26 @@ with col3:
     run_check = st.button(
         "Run Compliance Check", type="primary", use_container_width=True
     )
+
+# Below the input section, before the processing block
+st.markdown("**Quick Demo:**")
+
+demo_col1, demo_col2, demo_col3 = st.columns(3)
+with demo_col1:
+    if st.button("🟢 GREEN Example", use_container_width=True):
+        st.session_state["postcode_input"] = DEMO_POSTCODES["GREEN"]["postcode"]
+        st.session_state["company_input"] = DEMO_POSTCODES["GREEN"]["company"]
+        st.rerun()
+with demo_col2:
+    if st.button("🟡 AMBER Example", use_container_width=True):
+        st.session_state["postcode_input"] = DEMO_POSTCODES["AMBER"]["postcode"]
+        st.session_state["company_input"] = DEMO_POSTCODES["AMBER"]["company"]
+        st.rerun()
+with demo_col3:
+    if st.button("🔴 RED Example", use_container_width=True):
+        st.session_state["postcode_input"] = DEMO_POSTCODES["RED"]["postcode"]
+        st.session_state["company_input"] = DEMO_POSTCODES["RED"]["company"]
+        st.rerun()
 
 # --- Processing & Results ---
 if run_check and postcode:
@@ -182,10 +238,13 @@ if run_check and postcode:
         "RED": "DO NOT LEASE",
     }.get(level, "UNKNOWN")
 
+    address = result.get("epc_data", {}).get("address", postcode)
+
     st.markdown(
         f"""
     <div class="{level_class}">
         <h2 style="margin:0">{level_icon} {level}: {level_text}</h2>
+        <p style="margin:0.3rem 0 0 0; font-size: 0.95rem; opacity: 0.8">📍 {address}</p>
         <p style="margin:0.5rem 0 0 0; font-size: 1.1rem">Risk Score: <strong>{score}/100</strong></p>
     </div>
     """,
@@ -281,6 +340,13 @@ if run_check and postcode:
     # --- Raw Data (for technical demo) ---
     with st.expander("🔧 Raw Agent Outputs (Debug)"):
         st.json(result.get("raw_agent_outputs", []))
+
+    st.divider()
+    st.caption(
+        "Aloft Compliance Firewall Demo • Built by Kaide LABS • "
+        "Powered by Gemini 2.5 Flash, GPT-4o-mini, GPT-4o • "
+        "Real UK government data sources • Not legal advice"
+    )
 
 elif run_check and not postcode:
     st.error("Please enter a UK postcode.")

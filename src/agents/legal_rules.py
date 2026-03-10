@@ -1,3 +1,5 @@
+import asyncio
+
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 from src.rag.store import query_legislation
@@ -59,12 +61,27 @@ async def legal_rules_agent(state: ComplianceState) -> dict:
     ]
 
     try:
-        response = await structured_llm.ainvoke(messages)
+        response = await asyncio.wait_for(
+            asyncio.to_thread(structured_llm.invoke, messages), timeout=30.0
+        )
         requirements = [r.model_dump() for r in response.requirements]
-    except Exception as e:
+    except asyncio.TimeoutError:
         requirements = [
             {
-                "requirement": f"Error extracting legal requirements: {e}",
+                "requirement": "Legal analysis timed out — please retry",
+                "legislation": "N/A",
+                "section": "N/A",
+                "source_url": "",
+            }
+        ]
+    except Exception as e:
+        import traceback
+
+        error_detail = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+        print(f"[legal_rules_agent] ERROR: {error_detail}")
+        requirements = [
+            {
+                "requirement": f"Error extracting legal requirements: {type(e).__name__}: {e}",
                 "legislation": "N/A",
                 "section": "N/A",
                 "source_url": "",

@@ -1,4 +1,5 @@
 import json
+import asyncio
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 from typing import Literal, Optional, List
@@ -69,8 +70,22 @@ Assess this property's compliance risk."""
     ]
 
     try:
-        response = await structured_llm.ainvoke(messages)
+        response = await asyncio.wait_for(
+            structured_llm.ainvoke(messages), timeout=20.0
+        )
         result = response.model_dump()
+    except asyncio.TimeoutError:
+        result = {
+            "risk_score": 50,
+            "risk_level": "AMBER",
+            "violations": [],
+            "warnings": [
+                {
+                    "description": "Risk assessment timed out",
+                    "expires_in_days": None,
+                }
+            ],
+        }
     except Exception as e:
         result = {
             "risk_score": 50,

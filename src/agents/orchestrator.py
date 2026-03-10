@@ -1,4 +1,5 @@
 import json
+import asyncio
 from langchain_openai import ChatOpenAI
 from src.agents.state import ComplianceState
 
@@ -35,6 +36,15 @@ Write the final compliance summary."""
         {"role": "user", "content": user_message},
     ]
 
-    response = await llm.ainvoke(messages)
-
-    return {"summary": response.content}
+    try:
+        response = await asyncio.wait_for(llm.ainvoke(messages), timeout=20.0)
+        return {"summary": response.content}
+    except Exception as e:
+        level = state.get("risk_level", "UNKNOWN")
+        score = state.get("risk_score", "N/A")
+        violations = state.get("violations", [])
+        return {
+            "summary": f"Compliance check completed with verdict {level} (score: {score}/100). "
+            f"{len(violations)} violation(s) detected. "
+            f"Summary generation failed ({type(e).__name__}) — review details below."
+        }

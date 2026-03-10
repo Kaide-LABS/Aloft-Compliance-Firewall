@@ -12,7 +12,7 @@ class EPCClient:
         """Search for EPC certificates by postcode."""
         clean_postcode = postcode.replace(" ", "")
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
                 self.BASE_URL,
                 params={"postcode": clean_postcode},
