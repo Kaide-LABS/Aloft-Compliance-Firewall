@@ -7,6 +7,7 @@ def mock_api_keys(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "mock_openai_key")
     monkeypatch.setenv("GOOGLE_API_KEY", "mock_google_key")
     monkeypatch.setenv("EPC_API_KEY", "mock_epc_key")
+    monkeypatch.setenv("EPC_API_EMAIL", "mock@test.com")
     monkeypatch.setenv("COMPANIES_HOUSE_API_KEY", "mock_ch_key")
 
 

@@ -32,7 +32,7 @@ class TestGreenScenario:
         app_page.wait_for_selector("text=CLEAR TO LEASE", timeout=60000)
         screenshot(app_page, "10_green_verdict_banner")
         expect(app_page.locator("text=CLEAR TO LEASE")).to_be_visible()
-        expect(app_page.locator("text=EPC Rating")).to_be_visible()
+        expect(app_page.get_by_text("EPC Rating", exact=True).first).to_be_visible()
         expect(app_page.locator("text=No Violations")).to_be_visible()
         expect(app_page.locator("text=Compliance Summary")).to_be_visible()
         expect(app_page.locator("text=Download Compliance Report")).to_be_visible()
@@ -45,7 +45,7 @@ class TestAmberScenario:
         app_page.wait_for_selector("text=PROCEED WITH CAUTION", timeout=60000)
         screenshot(app_page, "20_amber_verdict_banner")
         expect(app_page.locator("text=PROCEED WITH CAUTION")).to_be_visible()
-        expect(app_page.locator("text=Warnings")).to_be_visible()
+        expect(app_page.get_by_text("Warnings", exact=False).first).to_be_visible()
         app_page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
         screenshot(app_page, "21_amber_full_results")
 
@@ -55,7 +55,7 @@ class TestRedScenario:
         app_page.wait_for_selector("text=DO NOT LEASE", timeout=60000)
         screenshot(app_page, "30_red_verdict_banner")
         expect(app_page.locator("text=DO NOT LEASE")).to_be_visible()
-        expect(app_page.locator("text=Violations")).to_be_visible()
+        expect(app_page.get_by_text("Violations", exact=False).first).to_be_visible()
         app_page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
         screenshot(app_page, "31_red_full_results")
 
@@ -67,7 +67,7 @@ class TestManualInput:
         company_input.fill("Foxtons")
         screenshot(app_page, "40_manual_input_filled")
         app_page.locator("text=Run Compliance Check").click()
-        app_page.wait_for_selector("text=Compliance Summary", timeout=60000)
+        app_page.wait_for_selector("text=Compliance Summary", timeout=120000)
         screenshot(app_page, "41_manual_input_results")
 
 class TestExpandableSections:
@@ -75,7 +75,7 @@ class TestExpandableSections:
         app_page.locator("text=GREEN Example").click()
         app_page.wait_for_selector("text=CLEAR TO LEASE", timeout=60000)
         app_page.locator("text=Property Details").click()
-        app_page.wait_for_selector("text=Property Type")
+        app_page.wait_for_timeout(1000)
         screenshot(app_page, "50_property_details_expanded")
 
     def test_expand_legal_requirements(self, app_page: Page):

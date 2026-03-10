@@ -4,6 +4,7 @@ from pydantic import ConfigDict
 
 class Config(BaseSettings):
     epc_api_key: str
+    epc_api_email: str
     companies_house_api_key: str
     openai_api_key: str
     google_api_key: str

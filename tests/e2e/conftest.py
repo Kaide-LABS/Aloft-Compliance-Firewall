@@ -13,6 +13,7 @@ def setup_screenshot_dir():
 def app_page(page: Page):
     """Navigate to the app and wait for it to load."""
     page.goto(APP_URL)
+    page.wait_for_load_state("networkidle")
     # Wait for Streamlit to finish loading
     page.wait_for_selector("text=Compliance Firewall", timeout=15000)
     return page

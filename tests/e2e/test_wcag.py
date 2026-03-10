@@ -39,9 +39,12 @@ class TestWCAGCompliance:
 
 class TestContrastChecks:
     def test_input_labels_visible(self, app_page: Page):
+        app_page.evaluate("window.scrollTo(0, 0)")
+        app_page.wait_for_timeout(500)
         expect_text = ["UK Postcode", "Property Management Company"]
         for text in expect_text:
-            el = app_page.locator(f"text={text}").first
+            el = app_page.get_by_text(text, exact=False).first
+            el.scroll_into_view_if_needed()
             assert el.is_visible(), f"Label '{text}' is not visible"
 
     def test_demo_button_text_visible(self, app_page: Page):

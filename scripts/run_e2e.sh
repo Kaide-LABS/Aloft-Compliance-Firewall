@@ -4,6 +4,7 @@ set -e
 source .venv/bin/activate
 
 echo "=== Starting Streamlit app ==="
+export PYTHONPATH="${PYTHONPATH:+$PYTHONPATH:}$(pwd)"
 streamlit run src/app.py --server.headless true --server.port 8501 &
 STREAMLIT_PID=$!
 

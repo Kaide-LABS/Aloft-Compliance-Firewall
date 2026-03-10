@@ -11,7 +11,7 @@ async def property_audit_agent(state: ComplianceState) -> dict:
     company_name = state.get("company_name", "")
 
     # --- EPC Check ---
-    epc_client = EPCClient(config.epc_api_key)
+    epc_client = EPCClient(config.epc_api_key, config.epc_api_email)
     try:
         certs = await epc_client.search_by_postcode(postcode)
         latest = epc_client.get_latest_certificate(certs)

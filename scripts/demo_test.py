@@ -10,10 +10,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
 
+load_dotenv()
+
 from src.agents.graph import compliance_graph  # noqa: E402
 from src.demo_postcodes import DEMO_POSTCODES  # noqa: E402
-
-load_dotenv()
 
 
 async def run_demo_test():
